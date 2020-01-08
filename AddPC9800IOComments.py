@@ -50,14 +50,19 @@ pc9800out = {
     0xae: "GDC Palette register #0, #4",
 }
 
-def addOUTComment(inst, out_n):
+pc9800in = {
+    0xa0: "GDC status read",
+}
+
+def addIOComment(inst, out_n, io="OUT"):
     codeUnit = listing.getCodeUnitAt(inst.getAddress())
     #if inst.getComment(codeUnit.PLATE_COMMENT) is not None: return
-    comment = "OUT {:X}h\n".format(out_n)
-    if out_n in pc9800out:
-        comment += pc9800out[out_n]
+    comment = "{} {:X}h\n".format(io, out_n)
+    d = pc9800out if io == "OUT" else pc9800in
+    if out_n in d:
+        comment += d[out_n]
     else:
-        print("Unknown port")
+        print("Unknown {} port".format(io))
         return
     print(comment)
     inst.setComment(codeUnit.PLATE_COMMENT, comment)
@@ -66,21 +71,14 @@ listing = currentProgram.getListing()
 inst = listing.getInstructions(currentProgram.getMemory(), True)
 for i in inst:
     if monitor.isCancelled(): exit()
-    if i.getMnemonicString() == "OUT":
-        if type(i.getOpObjects(0)[0]) is ghidra.program.model.scalar.Scalar:
-            out_n = i.getOpObjects(0)[0].getValue()
-            print("{} OUT {:X}h".format(i.getAddress(), out_n))
-            addOUTComment(i, out_n)
+    if i.getMnemonicString() in ("OUT", "IN"):
+        op_idx = 0 if i.getMnemonicString() == "OUT" else 1
+        if type(i.getOpObjects(op_idx)[0]) is ghidra.program.model.scalar.Scalar:
+            out_n = i.getOpObjects(op_idx)[0].getValue()
+            print("{} {} {:X}h".format(i.getAddress(), i.getMnemonicString(), out_n))
+            addIOComment(i, out_n, i.getMnemonicString())
         else:
-            print("{} OUT {}".format(i.getAddress(), i.getOpObjects(0)[0].getName()))
-
-    if i.getMnemonicString() == "IN":
-        if type(i.getOpObjects(0)[0]) is ghidra.program.model.scalar.Scalar:
-            out_n = i.getOpObjects(0)[0].getValue()
-            print("{} IN {:X}h".format(i.getAddress(), out_n))
-            #addINComment(i, out_n)
-        else:
-            print("{} IN {}".format(i.getAddress(), i.getOpObjects(0)[0].getName()))
+            print("{} {} {}".format(i.getAddress(), i.getMnemonicString(), i.getOpObjects(op_idx)[0].getName()))
 
 exit()
 
